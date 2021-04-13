@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27428.2015
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TGS.BettingSpeedTest", "TGS.BettingSpeedTest\TGS.BettingSpeedTest.csproj", "{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		PRODUCTION|Any CPU = PRODUCTION|Any CPU
+		QA|Any CPU = QA|Any CPU
+		Release|Any CPU = Release|Any CPU
+		LOCAL|Any CPU = LOCAL|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.QA|Any CPU.ActiveCfg = QA|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.QA|Any CPU.Build.0 = QA|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.Debug|Any CPU.ActiveCfg = LOCAL|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.Debug|Any CPU.Build.0 = LOCAL|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.LOCAL|Any CPU.ActiveCfg = LOCAL|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.LOCAL|Any CPU.Build.0 = LOCAL|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.PRODUCTION|Any CPU.ActiveCfg = PRODUCTION|Any CPU
+		{63445CF8-3D87-48E3-93E3-9E2F87A11DD5}.PRODUCTION|Any CPU.Build.0 = PRODUCTION|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7506E9FD-FF2E-41B1-93EE-59C5D3B7869F}
+	EndGlobalSection
+EndGlobal
