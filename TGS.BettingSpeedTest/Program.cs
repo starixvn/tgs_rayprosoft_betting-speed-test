@@ -9,7 +9,6 @@ using NLog;
 using TGS.BettingSpeedTest.Clients;
 using TGS.BettingSpeedTest.GameProviderApis;
 using TGS.BettingSpeedTest.Messages;
-using TGS.BettingSpeedTest.Messages.GameProvider;
 using TGS.BettingSpeedTest.Messages.Operator;
 using TGS.BettingSpeedTest.Messages.SunbetCredit;
 using TGS.BettingSpeedTest.Settings;
@@ -23,15 +22,6 @@ namespace TGS.BettingSpeedTest
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly CancellationTokenSource Cts = new CancellationTokenSource();
 
-        private static readonly TokenStore GpTokenStore = new TokenStore(
-            response => response is BetResponse betResponse && betResponse.err == 10,
-            async gpApi =>
-            {
-                var res = await gpApi.GetGameProviderAccessTokenResponseAsync();
-                return res.access_token;
-            }
-        );
-
         private static readonly IDictionary<string, IGameProviderApi> GameProviderApiList =
             new Dictionary<string, IGameProviderApi>
             {
@@ -42,43 +32,11 @@ namespace TGS.BettingSpeedTest
             IDictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?, TokenStore,
                 AuthorizePlayerResponse, bool, int, Task>> ScenarioList =
                 new Dictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?, TokenStore,
-                    AuthorizePlayerResponse, bool, int, Task>>
-                {
-                    {
-                        "PlaceAndSettle", (gpApi, userId, playerDataResponse, rewardCampaignId, oauthToken,
-                                authorizePlayerResponse, enableJackpot, count) =>
-                            gpApi.PlaceSingleBet(userId, playerDataResponse, rewardCampaignId, GpTokenStore,
-                                authorizePlayerResponse, enableJackpot, count)
-                    },
-                    {
-                        "MultipleBets", (gpApi, userId, playerDataResponse, rewardCampaignId, oauthToken,
-                            authorizePlayerResponse, enableJackpot, count) =>
-                        {
-                            if (count % 3 == 0)
-                                return gpApi.PlaceMultipleBets(userId, playerDataResponse, rewardCampaignId,
-                                    GpTokenStore, authorizePlayerResponse, enableJackpot, count);
-
-                            return gpApi.PlaceSingleBet(userId, playerDataResponse, rewardCampaignId, GpTokenStore,
-                                authorizePlayerResponse, enableJackpot, count);
-                        }
-                    },
-                    {
-                        "PlaceAndSettleWithDuplicates", (gpApi, userId, playerDataResponse, rewardCampaignId,
-                                oauthToken, authorizePlayerResponse, enableJackpot, count) =>
-                            gpApi.PlaceDuplicateSingleBet(userId, playerDataResponse, rewardCampaignId, GpTokenStore,
-                                authorizePlayerResponse, enableJackpot, count)
-                    },
-                    {
-                        "PlaceOppositeBetsAndSettle", (gpApi, userId, playerDataResponse, rewardCampaignId, oauthToken,
-                                authorizePlayerResponse, enableJackpot, count) =>
-                            gpApi.PlaceOppositeBets(userId, playerDataResponse, rewardCampaignId, GpTokenStore,
-                                authorizePlayerResponse, enableJackpot, count)
-                    }
-                };
+                    AuthorizePlayerResponse, bool, int, Task>>();
 
         private static readonly AutoResetEvent WaitEvent = new AutoResetEvent(false);
 
-        internal static void Main(string[] args)
+        internal static async Task Main(string[] args)
         {
             AppDomain.CurrentDomain.ProcessExit += (s, e) =>
             {
@@ -95,7 +53,7 @@ namespace TGS.BettingSpeedTest
             };
 
             Parser.Default.ParseArguments<Options>(args)
-                .WithParsed(opts => RunTest(opts).GetAwaiter().GetResult())
+                .WithParsed(async opts => await RunTest(opts).ConfigureAwait(false))
                 .WithNotParsed(HandleParseError);
 
             WaitEvent.WaitOne();
@@ -121,10 +79,8 @@ namespace TGS.BettingSpeedTest
                 return;
             }
 
-            var isSunbetCredit = options.BrandCode == "SunbetCredit";
-            var isProxyWallet = options.BrandCode == "PROXYBRAND1";
             var numberOfPlayers = options.NumberOfPlayers;
-            var enableJackpot = options.EnableJackpot;
+            //var enableJackpot = options.EnableJackpot;
 
             ServicePointManager.DefaultConnectionLimit = numberOfPlayers * 3;
             ServicePointManager.Expect100Continue = false;
@@ -143,23 +99,11 @@ namespace TGS.BettingSpeedTest
             }
 
             var gpEndpoint = gpApi.SetupHttpsForEndpoint(options.EnableHttps);
-            var operatorAccessTokenResponse = isSunbetCredit
-                ? new GetAccessTokenResponse()
-                : await GetOperatorAccessTokenResponseAsync(brandCredential);
-            await GpTokenStore.GetTokenAsync(gpApi);
 
-            Guid? rewardCampaignId = null;
-            if (options.GameProviderCode == "Reward")
-            {
-                var response =
-                    await SystemApiClient.CreateTestRewardCampaignAsync(options.RewardCampaignRestrictionType,
-                        options.ChanceToWin);
-                rewardCampaignId = response.Id;
-            }
 
             Console.WriteLine($"Executing {options.Scenario} scenario");
             Console.WriteLine($"Executing {numberOfPlayers} players testing");
-            Console.WriteLine($"Enable Jackpot testing {enableJackpot}");
+            //Console.WriteLine($"Enable Jackpot testing {enableJackpot}");
             Console.WriteLine($"Version {typeof(Program).Assembly.GetName().Version}");
             Console.WriteLine($"Api: {gpEndpoint}");
             Console.WriteLine("Press ctrl+c to stop service........");
@@ -185,19 +129,17 @@ namespace TGS.BettingSpeedTest
                             $"{userId} starts at {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} :{Thread.CurrentThread.ManagedThreadId}");
 
                         Logger.Info($"Authorizing player {userId}");
-                        var authorizePlayerResponse = await AuthorizePlayerAsync(i, userId,
-                            operatorAccessTokenResponse.access_token, isSunbetCredit);
+
+                        AuthorizePlayerResponse authorizePlayerResponse = null;
                         if (authorizePlayerResponse == null)
                         {
                             Logger.Warn($"Failed to authorize player {userId}");
                             return;
                         }
 
-                        if (isSunbetCredit) userId = authorizePlayerResponse.userId;
-
                         Logger.Info($"Authorized player {userId}");
 
-                        await gpApi.InitializeAsync(userId, authorizePlayerResponse.authtoken, rewardCampaignId);
+                        await gpApi.InitializeAsync(userId, authorizePlayerResponse.authtoken, null);
 
                         Logger.Info($"Getting player {userId} info");
                         var playerInfoResponse =
@@ -210,16 +152,6 @@ namespace TGS.BettingSpeedTest
                         }
 
                         Logger.Info($"Got player {userId} info");
-
-                        if (!isProxyWallet)
-                        {
-                            var creditAccessToken = isSunbetCredit
-                                ? authorizePlayerResponse.sunbetcredittoken
-                                : operatorAccessTokenResponse.access_token;
-                            var credited = await CreditPlayerAsync(userId, playerInfoResponse.playerid,
-                                creditAccessToken, isSunbetCredit);
-                            if (!credited) return;
-                        }
 
                         var j = 1;
                         while (!Cts.IsCancellationRequested)
@@ -235,8 +167,8 @@ namespace TGS.BettingSpeedTest
                             {
                                 Logger.Info($"Player {userId} starts scenario");
 
-                                await scenario(gpApi, userId, playerInfoResponse, rewardCampaignId, GpTokenStore,
-                                    authorizePlayerResponse, enableJackpot, j);
+                                await scenario(gpApi, userId, playerInfoResponse, null, null,
+                                    authorizePlayerResponse, false, j);
                             }
                             catch (Exception ex)
                             {

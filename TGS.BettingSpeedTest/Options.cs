@@ -7,8 +7,8 @@ namespace TGS.BettingSpeedTest
         [Option('p', "players", Default = 25)]
         public int NumberOfPlayers { get; set; }
 
-        [Option('j', "jackpot", Default = false, HelpText = "enable jackpot.")]
-        public bool EnableJackpot { get; set; }
+        //[Option('j', "jackpot", Default = false, HelpText = "enable jackpot.")]
+        //public bool EnableJackpot { get; set; }
 
         [Option('s', "scenario", Default = "PlaceAndSettle", HelpText = "scenario to run.")]
         public string Scenario { get; set; }
@@ -16,7 +16,7 @@ namespace TGS.BettingSpeedTest
         [Option('h', "https?", Default = false, HelpText = "enable https")]
         public bool EnableHttps { get; set; }
 
-        [Option('g', "gp-code", Default = "TGP", HelpText = "test gp")]
+        [Option('g', "gp-code", Default = "SBO", HelpText = "test gp")]
         public string GameProviderCode { get; set; }
 
         [Option('b', "brand-code", Default = "GPI", HelpText = "test brand")]
@@ -31,10 +31,10 @@ namespace TGS.BettingSpeedTest
         [Option('d', "MillisecondsDelay", Default = 300, HelpText = "MillisecondsDelay")]
         public int MillisecondsDelay { get; set; }
 
-        [Option('r', "PercentageOfPlay", Default = (byte)100, HelpText = "PercentageOfPlay")]
+        [Option('r', "PercentageOfPlay", Default = (byte) 100, HelpText = "PercentageOfPlay")]
         public byte PercentageOfPlay { get; set; }
 
-        [Option('c', "PlayCycleOfPercentage", Default = (byte)1, HelpText = "PlayCycleOfPercentage")]
+        [Option('c', "PlayCycleOfPercentage", Default = (byte) 1, HelpText = "PlayCycleOfPercentage")]
         public byte PlayCycleOfPercentage { get; set; }
     }
 }
