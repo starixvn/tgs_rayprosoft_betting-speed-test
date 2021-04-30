@@ -8,17 +8,14 @@ using CommandLine;
 using NLog;
 using TGS.BettingSpeedTest.Clients;
 using TGS.BettingSpeedTest.GameProviderApis;
-using TGS.BettingSpeedTest.Messages;
 using TGS.BettingSpeedTest.Messages.Operator;
-using TGS.BettingSpeedTest.Messages.SunbetCredit;
-using TGS.BettingSpeedTest.Settings;
 
 namespace TGS.BettingSpeedTest
 {
     internal static class Program
     {
         private static readonly IOperatorApiClient OperatorApiClient = new OperatorApiClient();
-        private static readonly ISystemApiClient SystemApiClient = new SystemApiClient();
+        private static readonly IGlobalApiClient GlobalApiClient = new GlobalApiClient();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly CancellationTokenSource Cts = new CancellationTokenSource();
 
@@ -29,9 +26,9 @@ namespace TGS.BettingSpeedTest
             };
 
         private static readonly
-            IDictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?, TokenStore,
+            IDictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?,
                 AuthorizePlayerResponse, bool, int, Task>> ScenarioList =
-                new Dictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?, TokenStore,
+                new Dictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?,
                     AuthorizePlayerResponse, bool, int, Task>>();
 
         private static readonly AutoResetEvent WaitEvent = new AutoResetEvent(false);
@@ -72,12 +69,7 @@ namespace TGS.BettingSpeedTest
             var playCycle = options.PlayCycleOfPercentage;
             var millisecondsDelay = options.MillisecondsDelay;
             var percentageOfPlay = options.PercentageOfPlay;
-            var brandCredential = GetCredentialAndLobbyPath(options.BrandCode);
-            if (brandCredential == null)
-            {
-                Logger.Warn("Unable to get operator credential");
-                return;
-            }
+
 
             var numberOfPlayers = options.NumberOfPlayers;
             //var enableJackpot = options.EnableJackpot;
@@ -167,7 +159,7 @@ namespace TGS.BettingSpeedTest
                             {
                                 Logger.Info($"Player {userId} starts scenario");
 
-                                await scenario(gpApi, userId, playerInfoResponse, null, null,
+                                await scenario(gpApi, userId, playerInfoResponse, null,
                                     authorizePlayerResponse, false, j);
                             }
                             catch (Exception ex)
@@ -203,126 +195,36 @@ namespace TGS.BettingSpeedTest
         }
 
         private static async Task<AuthorizePlayerResponse> AuthorizePlayerAsync(int playerInex, string userId,
-            string accessToken, bool isSunbetCredit)
-        {
-            if (isSunbetCredit)
-            {
-                var authed = await OperatorApiClient.SunbetCreditAuthManyAsync(playerInex + 1);
-                if (authed.return_code != ApiResponseCode.Succeeded)
-                {
-                    Logger.Warn("Failed to authorize sunbet credit");
-                    return null;
-                }
-
-                var response = authed.data.FirstOrDefault();
-                if (response == null)
-                {
-                    return null;
-                }
-
-                var player = await
-                    OperatorApiClient.SunbetCreditTokenAuthedAsync(response.SessionId, response.AcctId,
-                        response.SiteId);
-                if (player.err != ApiResponseCode.Succeeded)
-                {
-                    Logger.Warn("Failed to get sunbet credit token");
-                    return null;
-                }
-
-                return new AuthorizePlayerResponse
-                {
-                    authtoken = player.PlayerToken,
-                    sunbetcredittoken = player.SunbetCreditToken,
-                    userId = response.AcctId
-                };
-            }
-
-            return await OperatorApiClient.AuthorizePlayerAsync(accessToken, userId);
-        }
+            string accessToken, bool isSunbetCredit) =>
+            await OperatorApiClient.AuthorizePlayerAsync(accessToken, userId);
 
         private static async Task<bool> CreditPlayerAsync(string userId, Guid ugsUserId, string accessToken,
             bool isSunbetCredit)
         {
             Logger.Info($"Crediting player {userId}");
 
-            if (isSunbetCredit)
+            var creditExternalTransactionId = $"{userId}-Credit-{DateTime.Now:yyyyMMddHHmmss}";
+            var creditResponse = await OperatorApiClient.CreditAsync(accessToken, userId,
+                creditExternalTransactionId);
+
+            if (creditResponse == null)
             {
-                var playerInfo = await
-                    OperatorApiClient.SunbetCreditGetPlayerInfoAsync(userId);
-
-                if (playerInfo.return_code != ApiResponseCode.Succeeded)
-                {
-                    Logger.Warn($"Failed to get player {userId} information from sunbet credit");
-                    return false;
-                }
-
-                if (playerInfo.data.wallet_balance > 0)
-                {
-                    var debitResult = await
-                        OperatorApiClient.SunbetCreditWalletDebitAsync(accessToken, ugsUserId);
-
-                    if (debitResult.err != ApiResponseCode.Succeeded)
-                    {
-                        Logger.Warn($"Failed to debit. Player: {userId}");
-                        return false;
-                    }
-                }
-
-                if (playerInfo.data.main_balance < OperatorSettings.Wallet.CreditAmount)
-                {
-                    Logger.Warn($"Insufficient fund of sunbet credit. Player: {userId}");
-                    return false;
-                }
-
-                var credited = await
-                    OperatorApiClient.SunbetCreditWalletCreditAsync(accessToken, ugsUserId);
-
-                if (credited.err != ApiResponseCode.Succeeded)
-                {
-                    Logger.Warn(
-                        $"Failed to withdraw sunbet credit wallet. Player: {playerInfo.data.acct_id}. Error: {credited.errdesc}");
-                    return false;
-                }
-            }
-            else
-            {
-                var creditExternalTransactionId = $"{userId}-Credit-{DateTime.Now:yyyyMMddHHmmss}";
-                var creditResponse = await OperatorApiClient.CreditAsync(accessToken, userId,
-                    creditExternalTransactionId);
-
-                if (creditResponse == null)
-                {
-                    Logger.Warn($"Failed to credit player {userId}");
-                    return false;
-                }
+                Logger.Warn($"Failed to credit player {userId}");
+                return false;
             }
 
             Logger.Info($"Credited {userId}");
             return true;
         }
 
-        private static async Task<GetAccessTokenResponse> GetOperatorAccessTokenResponseAsync(
-            CredentialAndLobbyPath credential)
-        {
-            Logger.Info("Getting operator access token");
-            var getAccessTokenResponse = await OperatorApiClient.GetAccessTokenAsync(credential);
+        //private static CredentialAndLobbyPath GetCredentialAndLobbyPath(string brandCode)
+        //{
+        //    if (OperatorSettings.Credentials.TryGetValue(brandCode, out var credential))
+        //    {
+        //        return credential;
+        //    }
 
-            if (getAccessTokenResponse == null)
-            {
-                throw new InvalidOperationException("Failed to get operator access token");
-            }
-
-            return getAccessTokenResponse;
-        }
-
-        private static CredentialAndLobbyPath GetCredentialAndLobbyPath(string brandCode)
-        {
-            if (OperatorSettings.Credentials.TryGetValue(brandCode, out var credential))
-            {
-                return credential;
-            }
-
-            throw new InvalidOperationException("Brand credential not found.");
-        }
+        //    throw new InvalidOperationException("Brand credential not found.");
+        //}
     }
 }

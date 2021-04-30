@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using NLog;
 using TGS.BettingSpeedTest.Clients;
-using TGS.BettingSpeedTest.Messages;
 using TGS.BettingSpeedTest.Messages.AsiaGaming;
 using TGS.BettingSpeedTest.Messages.Operator;
 using TGS.BettingSpeedTest.Settings;
@@ -23,21 +22,15 @@ namespace TGS.BettingSpeedTest.GameProviderApis
             return AsiaGamingSettings.ApiEndpoint;
         }
 
-        Task IGameProviderApi.InitializeAsync(string userId, string playerToken, Guid? rewardCampaignId)
-        {
-            return Task.FromResult(0);
-        }
-
-        Task<GetAccessTokenResponse> IGameProviderApi.GetGameProviderAccessTokenResponseAsync()
-        {
-            return Task.FromResult(new GetAccessTokenResponse());
-        }
+        Task IGameProviderApi.InitializeAsync(string userId, string playerToken, Guid? rewardCampaignId) =>
+            Task.FromResult(0);
 
         async Task IGameProviderApi.PlaceSingleBet(string userId, PlayerDataResponse playerData, Guid? rewardCampaignId,
-            TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count)
+            AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count)
         {
             var externalRoundId = $"{userId}-Place-{DateTime.Now:yyMMddHHmmss}-{count}";
-            var placeBetResopnse = await AsiaGamingApiClient.PlaceBetAsync(playerData.tokenid, playerData.playercode, externalRoundId);
+            var placeBetResopnse =
+                await AsiaGamingApiClient.PlaceBetAsync(playerData.tokenid, playerData.playercode, externalRoundId);
 
             if (placeBetResopnse == null || placeBetResopnse.ErrorCode != AsiaGamingSettings.SuccessfulErrorCode)
             {
@@ -45,6 +38,7 @@ namespace TGS.BettingSpeedTest.GameProviderApis
                 await Task.Delay(1000);
                 return;
             }
+
             Logger.Info($"Player {userId} placed a bet");
 
             if (count % 5 == 0)
@@ -78,7 +72,7 @@ namespace TGS.BettingSpeedTest.GameProviderApis
         }
 
         async Task IGameProviderApi.PlaceMultipleBets(string userId, PlayerDataResponse playerData,
-            Guid? rewardCampaignId, TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse,
+            Guid? rewardCampaignId, AuthorizePlayerResponse authorizePlayerResponse,
             bool enableJackpot, int count)
         {
             var externalRoundId = $"{userId}-Place-{DateTime.Now:yyMMddHHmmss}-{count}";
@@ -100,7 +94,7 @@ namespace TGS.BettingSpeedTest.GameProviderApis
             if (count % 5 == 0)
             {
                 Logger.Info($"Player {userId} settling a bet");
-                string settleBetExternalTransactionId =
+                var settleBetExternalTransactionId =
                     $"{userId}-Settle-{DateTime.Now:yyyyMMddHHmmss}-{count}";
                 var settleBetResopnse = await AsiaGamingApiClient.SettleBetAsync(
                     playerData.tokenid, playerData.playercode, externalRoundId, 10);
@@ -116,7 +110,7 @@ namespace TGS.BettingSpeedTest.GameProviderApis
             else
             {
                 Logger.Info($"Player {userId} losing a bet");
-                string loseBetExternalTransactionId =
+                var loseBetExternalTransactionId =
                     $"{userId}-Lose-{DateTime.Now:yyyyMMddHHmmss}-{count}";
                 var loseBetResponse = await AsiaGamingApiClient.SettleBetAsync(
                     playerData.tokenid, playerData.playercode, externalRoundId, 0);
@@ -131,8 +125,9 @@ namespace TGS.BettingSpeedTest.GameProviderApis
             }
         }
 
-        async Task IGameProviderApi.PlaceOppositeBets(string userId, PlayerDataResponse playerData, Guid? rewardCampaignId,
-            TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count)
+        async Task IGameProviderApi.PlaceOppositeBets(string userId, PlayerDataResponse playerData,
+            Guid? rewardCampaignId,
+            AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count)
         {
             var externalRoundId = $"{userId}-Place-{DateTime.Now:yyMMddHHmmss}-{count}";
             var requests = new List<Task<BetResponse>>();
@@ -153,7 +148,7 @@ namespace TGS.BettingSpeedTest.GameProviderApis
             if (count % 5 == 0)
             {
                 Logger.Info($"Player {userId} settling a bet");
-                string settleBetExternalTransactionId =
+                var settleBetExternalTransactionId =
                     $"{userId}-Settle-{DateTime.Now:yyyyMMddHHmmss}-{count}";
                 var settleBetResopnse = await AsiaGamingApiClient.SettleBetAsync(
                     playerData.tokenid, playerData.playercode, externalRoundId, 10);
@@ -169,7 +164,7 @@ namespace TGS.BettingSpeedTest.GameProviderApis
             else
             {
                 Logger.Info($"Player {userId} losing a bet");
-                string loseBetExternalTransactionId =
+                var loseBetExternalTransactionId =
                     $"{userId}-Lose-{DateTime.Now:yyyyMMddHHmmss}-{count}";
                 var loseBetResponse = await AsiaGamingApiClient.SettleBetAsync(
                     playerData.tokenid, playerData.playercode, externalRoundId, 0);
@@ -185,10 +180,8 @@ namespace TGS.BettingSpeedTest.GameProviderApis
         }
 
         Task IGameProviderApi.PlaceDuplicateSingleBet(string userId, PlayerDataResponse playerData,
-            Guid? rewardCampaignId, TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse,
-            bool enableJackpot, int count)
-        {
+            Guid? rewardCampaignId, AuthorizePlayerResponse authorizePlayerResponse,
+            bool enableJackpot, int count) =>
             throw new NotImplementedException();
-        }
     }
 }
