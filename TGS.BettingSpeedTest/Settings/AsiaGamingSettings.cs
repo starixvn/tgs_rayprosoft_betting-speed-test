@@ -6,12 +6,8 @@
         public static string ApiEndpoint = "{0}://localhost:43000/api";
 #endif
 
-#if QA
-        public static string ApiEndpoint = "{0}://qa-gp-ag.tgpaccess.com/api";
-#endif
-
-#if PRODUCTION
-        public static string ApiEndpoint = "{0}://perf-test-gp-ag.tgpaccess.com/api";
+#if DEV
+    public static string ApiEndpoint = "{0}://qa-gp-ag.tgpaccess.com/api";
 #endif
 
         public const string AgentCode = "FK5";

@@ -8,32 +8,44 @@ using CommandLine;
 using NLog;
 using TGS.BettingSpeedTest.Clients;
 using TGS.BettingSpeedTest.GameProviderApis;
-using TGS.BettingSpeedTest.Messages.Operator;
+using TGS.BettingSpeedTest.Messages.Global;
+using TGS.BettingSpeedTest.Settings;
 
 namespace TGS.BettingSpeedTest
 {
     internal static class Program
     {
-        private static readonly IOperatorApiClient OperatorApiClient = new OperatorApiClient();
         private static readonly IGlobalApiClient GlobalApiClient = new GlobalApiClient();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        private static readonly CancellationTokenSource Cts = new CancellationTokenSource();
+        private static readonly CancellationTokenSource Cts = new();
 
         private static readonly IDictionary<string, IGameProviderApi> GameProviderApiList =
             new Dictionary<string, IGameProviderApi>
             {
-                {"AG", new AsiaGamingApi()}
+                {"AG", new AsiaGamingApi()},
+                {"SBO", new SboGamingApi()}
             };
 
         private static readonly
-            IDictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?,
-                AuthorizePlayerResponse, bool, int, Task>> ScenarioList =
-                new Dictionary<string, Func<IGameProviderApi, string, PlayerDataResponse, Guid?,
-                    AuthorizePlayerResponse, bool, int, Task>>();
+            IDictionary<string, Func<IGameProviderApi, string, CreatePlayerAndLoginResponse, int, ValueTask>>
+            ScenarioList =
+                new Dictionary<string, Func<IGameProviderApi, string, CreatePlayerAndLoginResponse, int, ValueTask>>
+                {
+                    ["PlaceAndSettle"] = (gpApi, userId, createPlayerAndLoginResponse, count) =>
+                        gpApi.PlaceSingleBet(userId, createPlayerAndLoginResponse, count),
+                    ["MultipleBets"] = (gpApi, userId, createPlayerAndLoginResponse, count) =>
+                        count % 3 == 0
+                            ? gpApi.PlaceMultipleBets(userId, createPlayerAndLoginResponse, count)
+                            : gpApi.PlaceSingleBet(userId, createPlayerAndLoginResponse, count),
+                    ["PlaceAndSettleWithDuplicates"] = (gpApi, userId, createPlayerAndLoginResponse, count) =>
+                        gpApi.PlaceDuplicateSingleBet(userId, createPlayerAndLoginResponse, count),
+                    ["PlaceOppositeBetsAndSettle"] = (gpApi, userId, createPlayerAndLoginResponse, count) =>
+                        gpApi.PlaceOppositeBets(userId, createPlayerAndLoginResponse, count)
+                };
 
-        private static readonly AutoResetEvent WaitEvent = new AutoResetEvent(false);
+        private static readonly AutoResetEvent WaitEvent = new(false);
 
-        internal static async Task Main(string[] args)
+        internal static void Main(string[] args)
         {
             AppDomain.CurrentDomain.ProcessExit += (s, e) =>
             {
@@ -50,7 +62,7 @@ namespace TGS.BettingSpeedTest
             };
 
             Parser.Default.ParseArguments<Options>(args)
-                .WithParsed(async opts => await RunTest(opts).ConfigureAwait(false))
+                .WithParsed(opts => RunTest(opts).GetAwaiter().GetResult())
                 .WithNotParsed(HandleParseError);
 
             WaitEvent.WaitOne();
@@ -70,9 +82,8 @@ namespace TGS.BettingSpeedTest
             var millisecondsDelay = options.MillisecondsDelay;
             var percentageOfPlay = options.PercentageOfPlay;
 
-
             var numberOfPlayers = options.NumberOfPlayers;
-            //var enableJackpot = options.EnableJackpot;
+            numberOfPlayers = 1;
 
             ServicePointManager.DefaultConnectionLimit = numberOfPlayers * 3;
             ServicePointManager.Expect100Continue = false;
@@ -92,10 +103,8 @@ namespace TGS.BettingSpeedTest
 
             var gpEndpoint = gpApi.SetupHttpsForEndpoint(options.EnableHttps);
 
-
             Console.WriteLine($"Executing {options.Scenario} scenario");
             Console.WriteLine($"Executing {numberOfPlayers} players testing");
-            //Console.WriteLine($"Enable Jackpot testing {enableJackpot}");
             Console.WriteLine($"Version {typeof(Program).Assembly.GetName().Version}");
             Console.WriteLine($"Api: {gpEndpoint}");
             Console.WriteLine("Press ctrl+c to stop service........");
@@ -120,30 +129,21 @@ namespace TGS.BettingSpeedTest
                         Console.WriteLine(
                             $"{userId} starts at {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} :{Thread.CurrentThread.ManagedThreadId}");
 
-                        Logger.Info($"Authorizing player {userId}");
+                        Logger.Info($"Create player {userId} and login");
 
-                        AuthorizePlayerResponse authorizePlayerResponse = null;
-                        if (authorizePlayerResponse == null)
+                        var createPlayerAndLoginResponse = await GlobalApiClient.CreatePlayerAndLoginAsync(new()
                         {
-                            Logger.Warn($"Failed to authorize player {userId}");
+                            BrandCode = options.BrandCode,
+                            Username = userId,
+                            CurrencyCode = PlayerSettings.Currency,
+                            InitialWalletAmount = PlayerSettings.InitWalletAmount
+                        });
+
+                        if (createPlayerAndLoginResponse == null || createPlayerAndLoginResponse.Error > 0)
+                        {
+                            Logger.Warn($"Failed to create and login player {userId}");
                             return;
                         }
-
-                        Logger.Info($"Authorized player {userId}");
-
-                        await gpApi.InitializeAsync(userId, authorizePlayerResponse.authtoken, null);
-
-                        Logger.Info($"Getting player {userId} info");
-                        var playerInfoResponse =
-                            await OperatorApiClient.PlayerInfoAsync(authorizePlayerResponse.authtoken);
-
-                        if (playerInfoResponse == null)
-                        {
-                            Logger.Warn($"Failed to get player {userId} info");
-                            return;
-                        }
-
-                        Logger.Info($"Got player {userId} info");
 
                         var j = 1;
                         while (!Cts.IsCancellationRequested)
@@ -159,8 +159,7 @@ namespace TGS.BettingSpeedTest
                             {
                                 Logger.Info($"Player {userId} starts scenario");
 
-                                await scenario(gpApi, userId, playerInfoResponse, null,
-                                    authorizePlayerResponse, false, j);
+                                await scenario(gpApi, userId, createPlayerAndLoginResponse, j);
                             }
                             catch (Exception ex)
                             {
@@ -183,9 +182,14 @@ namespace TGS.BettingSpeedTest
 
         private static bool CanPlay(byte percentageOfPlay)
         {
-            if (percentageOfPlay == 100) return true;
-            if (percentageOfPlay > 100) return true;
-            if (percentageOfPlay == 0) return false;
+            switch (percentageOfPlay)
+            {
+                case 100:
+                case > 100:
+                    return true;
+                case 0:
+                    return false;
+            }
 
             var rnd = new Random();
             var rndNumber = rnd.Next(1, 100);
@@ -193,38 +197,5 @@ namespace TGS.BettingSpeedTest
             if (percentageOfPlay > 50) return rndNumber > 100 - percentageOfPlay;
             return rndNumber <= percentageOfPlay;
         }
-
-        private static async Task<AuthorizePlayerResponse> AuthorizePlayerAsync(int playerInex, string userId,
-            string accessToken, bool isSunbetCredit) =>
-            await OperatorApiClient.AuthorizePlayerAsync(accessToken, userId);
-
-        private static async Task<bool> CreditPlayerAsync(string userId, Guid ugsUserId, string accessToken,
-            bool isSunbetCredit)
-        {
-            Logger.Info($"Crediting player {userId}");
-
-            var creditExternalTransactionId = $"{userId}-Credit-{DateTime.Now:yyyyMMddHHmmss}";
-            var creditResponse = await OperatorApiClient.CreditAsync(accessToken, userId,
-                creditExternalTransactionId);
-
-            if (creditResponse == null)
-            {
-                Logger.Warn($"Failed to credit player {userId}");
-                return false;
-            }
-
-            Logger.Info($"Credited {userId}");
-            return true;
-        }
-
-        //private static CredentialAndLobbyPath GetCredentialAndLobbyPath(string brandCode)
-        //{
-        //    if (OperatorSettings.Credentials.TryGetValue(brandCode, out var credential))
-        //    {
-        //        return credential;
-        //    }
-
-        //    throw new InvalidOperationException("Brand credential not found.");
-        //}
     }
 }
