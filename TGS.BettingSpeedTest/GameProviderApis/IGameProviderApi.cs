@@ -1,7 +1,5 @@
-﻿using System;
-using System.Threading.Tasks;
-using TGS.BettingSpeedTest.Messages;
-using TGS.BettingSpeedTest.Messages.Operator;
+﻿using System.Threading.Tasks;
+using TGS.BettingSpeedTest.Messages.Global;
 
 namespace TGS.BettingSpeedTest.GameProviderApis
 {
@@ -9,20 +7,15 @@ namespace TGS.BettingSpeedTest.GameProviderApis
     {
         string SetupHttpsForEndpoint(bool enableHttps);
 
-        Task InitializeAsync(string userId, string playerToken, Guid? rewardCampaignId);
+        ValueTask PlaceSingleBet(string userId, CreatePlayerAndLoginResponse createPlayerAndLoginResponse, int count);
 
-        Task<GetAccessTokenResponse> GetGameProviderAccessTokenResponseAsync();
+        ValueTask PlaceMultipleBets(string userId, CreatePlayerAndLoginResponse createPlayerAndLoginResponse,
+            int count);
 
-        Task PlaceSingleBet(string userId, PlayerDataResponse playerData, Guid? rewardCampaignId, TokenStore oauthToken,
-            AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count);
+        ValueTask PlaceDuplicateSingleBet(string userId, CreatePlayerAndLoginResponse createPlayerAndLoginResponse,
+            int count);
 
-        Task PlaceMultipleBets(string userId, PlayerDataResponse playerData, Guid? rewardCampaignId,
-            TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count);
-
-        Task PlaceDuplicateSingleBet(string userId, PlayerDataResponse playerData, Guid? rewardCampaignId,
-            TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count);
-
-        Task PlaceOppositeBets(string userId, PlayerDataResponse playerData, Guid? rewardCampaignId,
-            TokenStore oauthToken, AuthorizePlayerResponse authorizePlayerResponse, bool enableJackpot, int count);
+        ValueTask PlaceOppositeBets(string userId, CreatePlayerAndLoginResponse createPlayerAndLoginResponse,
+            int count);
     }
 }

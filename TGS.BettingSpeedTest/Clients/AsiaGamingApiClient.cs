@@ -1,5 +1,11 @@
 using System;
+using System.IO;
+using System.Net.Http;
+using System.Net.Mime;
+using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Serialization;
 using TGS.BettingSpeedTest.Messages.AsiaGaming;
 using TGS.BettingSpeedTest.Settings;
 
@@ -7,20 +13,20 @@ namespace TGS.BettingSpeedTest.Clients
 {
     public interface IAsiaGamingApiClient
     {
-        Task<BetResponse> PlaceBetAsync(Guid tokenId, string playerCode, string externalRoundId);
+        ValueTask<BetResponse> PlaceBetAsync(Guid tokenId, string playerCode, string externalRoundId);
 
-        Task<BetResponse> SettleBetAsync(Guid tokenId, string playerCode, string externalRoundId, decimal amount);
+        ValueTask<BetResponse> SettleBetAsync(Guid tokenId, string playerCode, string externalRoundId, decimal amount);
     }
 
     internal class AsiaGamingApiClient : BaseApiClient, IAsiaGamingApiClient
     {
-        Task<BetResponse> IAsiaGamingApiClient.PlaceBetAsync(Guid tokenId, string playerCode, string externalRoundId)
+        ValueTask<BetResponse> IAsiaGamingApiClient.PlaceBetAsync(Guid tokenId, string playerCode,
+            string externalRoundId)
         {
             var url = AsiaGamingSettings.ApiEndpoint + AsiaGamingSettings.ApiPath.BetsPlaceAndSettle;
-
-            return SendXmlAsync<PlaceBetRequest, BetResponse>(new PlaceBetRequest
+            var request = new PlaceBetRequest
             {
-                Record = new PlaceBetRecord
+                Record = new()
                 {
                     Amount = AsiaGamingSettings.BetAmount,
                     Timestamp = GetAsiaGamingTimestamp(),
@@ -37,16 +43,21 @@ namespace TGS.BettingSpeedTest.Clients
                     TransactionType = AsiaGamingSettings.Bet.ToUpper(),
                     Platform = AsiaGamingSettings.Platform
                 }
-            }, url);
+            };
+
+            var httpRequestMessage = GetHttpRequestMessage(HttpMethod.Post, url, request);
+            return SendAndReadFromXmlAsync<BetResponse>(httpRequestMessage);
         }
 
-        Task<BetResponse> IAsiaGamingApiClient.SettleBetAsync(Guid tokenId, string playerCode, string externalRoundId, decimal amount)
+        ValueTask<BetResponse> IAsiaGamingApiClient.SettleBetAsync(Guid tokenId, string playerCode,
+            string externalRoundId,
+            decimal amount)
         {
             var url = AsiaGamingSettings.ApiEndpoint + AsiaGamingSettings.ApiPath.BetsPlaceAndSettle;
 
-            return SendXmlAsync<SettleBetRequest, BetResponse>(new SettleBetRequest
+            var request = new SettleBetRequest
             {
-                Record = new SettleBetRecord
+                Record = new()
                 {
                     WinAmount = amount,
                     BetAmount = -AsiaGamingSettings.BetAmount,
@@ -57,23 +68,44 @@ namespace TGS.BettingSpeedTest.Clients
                     Currency = AsiaGamingSettings.Currency,
                     PlayerCode = GetAsiaGamingPlayerCode(playerCode),
                     AgentCode = AsiaGamingSettings.AgentCode,
-                    TransactionIds = new[] { externalRoundId },
+                    TransactionIds = new[] {externalRoundId},
                     RoundId = externalRoundId,
                     TransactionType = (amount == 0 ? AsiaGamingSettings.Lose : AsiaGamingSettings.Win).ToUpper(),
                     Platform = AsiaGamingSettings.Platform,
                     RoundClosed = "true"
                 }
-            }, url);
+            };
+
+            var httpRequestMessage = GetHttpRequestMessage(HttpMethod.Post, url, request);
+            return SendAndReadFromXmlAsync<BetResponse>(httpRequestMessage);
         }
 
-        private string GetAsiaGamingPlayerCode(string playerCode)
+        private static HttpRequestMessage GetHttpRequestMessage<TRequest>(HttpMethod method, string url,
+            TRequest request) =>
+            new(method, url)
+            {
+                Content = new StringContent(ObjectToXml(request), Encoding.UTF8, MediaTypeNames.Application.Xml)
+            };
+
+        private static string GetAsiaGamingPlayerCode(string playerCode) => AsiaGamingSettings.AgentCode + playerCode;
+
+        private static string GetAsiaGamingTimestamp() =>
+            DateTimeOffset.UtcNow.AddHours(-4).ToString(AsiaGamingSettings.TimestampFormat);
+
+        private static string ObjectToXml<TRequest>(TRequest request)
         {
-            return AsiaGamingSettings.AgentCode + playerCode;
+            var emptyNamespaces = new XmlSerializerNamespaces();
+            emptyNamespaces.Add("", "");
+            using var sw = new Utf8StringWriter();
+            using var writer = XmlWriter.Create(sw);
+            var serializer = new XmlSerializer(typeof(TRequest));
+            serializer.Serialize(writer, request, emptyNamespaces);
+            return sw.ToString();
         }
 
-        private string GetAsiaGamingTimestamp()
+        private class Utf8StringWriter : StringWriter
         {
-            return DateTimeOffset.UtcNow.AddHours(-4).ToString(AsiaGamingSettings.TimestampFormat);
+            public override Encoding Encoding => new UTF8Encoding(false);
         }
     }
 }
