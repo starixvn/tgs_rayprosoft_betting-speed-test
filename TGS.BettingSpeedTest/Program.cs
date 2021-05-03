@@ -83,7 +83,6 @@ namespace TGS.BettingSpeedTest
             var percentageOfPlay = options.PercentageOfPlay;
 
             var numberOfPlayers = options.NumberOfPlayers;
-            numberOfPlayers = 1;
 
             ServicePointManager.DefaultConnectionLimit = numberOfPlayers * 3;
             ServicePointManager.Expect100Continue = false;
