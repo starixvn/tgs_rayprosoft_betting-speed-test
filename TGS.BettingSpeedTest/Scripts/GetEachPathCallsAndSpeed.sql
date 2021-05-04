@@ -1,22 +1,23 @@
 SELECT
-   "Path",
-   COUNT("Path") AS "Calls",
-   MIN("ExecutionTimeMs") AS "Min",
-   MAX("ExecutionTimeMs") AS "Max",
-   to_char(AVG("ExecutionTimeMs"), '99999D99') AS "Avg" 
+   "path",
+   COUNT("path") AS "Calls",
+   MIN("execution_time_ms") AS "Min",
+   MAX("execution_time_ms") AS "Max",
+   to_char(AVG("execution_time_ms"), '99999D99') AS "Avg" 
 FROM
-   dbo."ApiCallLogs" 
+   dbo."api_logs" 
+
 WHERE
-   "Prefix" = 'dopamine' 
-   AND "ResponseCode" = 200 
-   AND "RecordedOn" BETWEEN '2020-03-13 18:45:00.000+08:00' AND '2020-03-13 18:48:00.000+08:00' 
-   AND "ExecutionTimeMs" > 0 
+   "prefix" = 'sbo' 
+   AND "response_code" = 200 
+   AND "recorded_on" BETWEEN '2021-05-04 10:45:00.000+08:00' AND '2021-05-04 18:48:00.000+08:00' 
+   AND "execution_time_ms" > 0 
    AND 
    (
-      "Path" LIKE '%bets/place%' 
-      OR "Path" LIKE '%bets/settle%' 
+      "path" LIKE '%deduct%' 
+      OR "path" LIKE '%settle%' 
    )
-GROUP BY
-   "Path" 
+   GROUP BY
+   "path" 
 ORDER BY
    1 ;

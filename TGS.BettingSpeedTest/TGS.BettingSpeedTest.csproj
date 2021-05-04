@@ -3,7 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net5.0</TargetFramework>
-        <Configurations>Debug;Release;LOCAL;DEV</Configurations>
+        <Configurations>Debug;Release;LOCAL;DEV;STAGING;PROD</Configurations>
         <Platforms>AnyCPU</Platforms>
         <AssemblyVersion>0.0.1</AssemblyVersion>
         <Nullable>disable</Nullable>

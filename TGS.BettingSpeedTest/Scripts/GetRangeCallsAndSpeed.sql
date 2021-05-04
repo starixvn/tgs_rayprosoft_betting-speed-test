@@ -1,67 +1,68 @@
 WITH data AS 
 (
    SELECT
-      "Path",
+      "path",
       CASE
          WHEN
-            "ExecutionTimeMs" BETWEEN 0 AND 199 
+            "execution_time_ms" BETWEEN 0 AND 199 
          THEN
             '0000 to 0199' 
          WHEN
-            "ExecutionTimeMs" BETWEEN 200 AND 999 
+            "execution_time_ms" BETWEEN 200 AND 999 
          THEN
             '0200 to 0999' 
          WHEN
-            "ExecutionTimeMs" BETWEEN 1000 AND 2999 
+            "execution_time_ms" BETWEEN 1000 AND 2999 
          THEN
             '1000 to 2999' 
          WHEN
-            "ExecutionTimeMs" BETWEEN 3000 AND 6999 
+            "execution_time_ms" BETWEEN 3000 AND 6999 
          THEN
             '3000 to 6999' 
          ELSE
             '7000 and above' 
       END
-      AS "Range" 
+      AS "range" 
    FROM
-      dbo."ApiCallLogs" 
+      dbo."api_logs" 
    WHERE
-      "Prefix" = 'dopamine' 
-      AND "ResponseCode" = 200 
-      AND "ExecutionTimeMs" > 0 
-      AND "RecordedOn" BETWEEN '2020-03-13 18:45:00.000+08:00' AND '2020-03-13 18:48:00.000+08:00' 
+      "prefix" = 'sbo' 
+      AND "response_code" = 200 
+      AND "execution_time_ms" > 0 
+      AND "recorded_on" BETWEEN '2021-05-04 00:45:00.000+08:00' AND '2021-05-13 18:48:00.000+08:00' 
       AND 
       (
-         "Path" LIKE '%bets/place%' 
-         OR "Path" LIKE '%bets/settle%' 
+         "path" LIKE '%decuct%' 
+         OR "path" LIKE '%settle%' 
       )
 )
+
 SELECT
-   t1."Path",
-   t1."Range",
-   COUNT(t1."Range") AS "Samples",
+   t1."path",
+   t1."range",
+   COUNT(t1."range") AS "samples",
    (
-      CAST(COUNT(t1."Range") AS FLOAT)*100 
+      CAST(COUNT(t1."range") AS FLOAT)*100 
    )
-   / t2."SampleCount" AS "Percentage" 
+   / t2."sample_count" AS "percentage" 
 FROM
    data t1 
    LEFT JOIN
       (
          SELECT
-            "Path",
-            COUNT("Range") AS "SampleCount" 
+            "path",
+            COUNT("range") AS "sample_count" 
          FROM
             data 
          GROUP BY
-            "Path" 
+            "path" 
       )
       t2 
-      ON t1."Path" = t2."Path" 
+      ON t1."path" = t2."path" 
 GROUP BY
-   t1."Path",
-   t1."Range",
-   t2."SampleCount" 
+   t1."path",
+   t1."range",
+   t2."sample_count" 
 ORDER BY
-   "Path",
-   "Range";
+   "path",
+   "range";

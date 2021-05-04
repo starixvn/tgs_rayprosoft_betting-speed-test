@@ -1,19 +1,19 @@
 SELECT
-   "ServerName",
-   COUNT("ServerName") AS "Calls" 
+   "server_name",
+   COUNT("server_name") AS "Calls" 
 FROM
-   dbo."ApiCallLogs" 
+   dbo."api_logs" 
 WHERE
-   "Prefix" = 'dopamine' 
-   AND "ResponseCode" = 200 
-   AND "RecordedOn" BETWEEN '2020-03-13 18:45:00.000+08:00' AND '2020-03-13 18:47:00.000+08:00' 
-   AND "ExecutionTimeMs" > 0 
+   "prefix" = 'sbo' 
+   AND "response_code" = 200 
+   AND "recorded_on" BETWEEN '2021-05-04 10:00:00.000+08:00' AND '2021-05-04 18:47:00.000+08:00' 
+   AND "execution_time_ms" > 0 
    AND 
    (
-      "Path" LIKE '%bets/place%' 
-      OR "Path" LIKE '%bets/settle%' 
+      "path" LIKE '%deduct%' 
+      OR "path" LIKE '%settle%' 
    )
 GROUP BY
-   "ServerName" 
+   "server_name" 
 ORDER BY
    1 ;

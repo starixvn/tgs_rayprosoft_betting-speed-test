@@ -22,7 +22,7 @@ namespace TGS.BettingSpeedTest
         private static readonly IDictionary<string, IGameProviderApi> GameProviderApiList =
             new Dictionary<string, IGameProviderApi>
             {
-                {"AG", new AsiaGamingApi()},
+                //{"AG", new AsiaGamingApi()},
                 {"SBO", new SboGamingApi()}
             };
 
