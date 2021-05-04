@@ -3,7 +3,7 @@
 ## Run performance testing ##
 1. Make sure you are at your home directory, e.g., /home/aft.petec@tgpaccessdomain.com
 
-2. Clone the repository by `git clone https://git.alliance.tw/ugs/bettingspeedtest.git`
+2. Clone the repository by `git clone https://gitlab.com/rayprosoft/betting-speed-test.git`
 
 3. `cd bettingspeedtest`
 

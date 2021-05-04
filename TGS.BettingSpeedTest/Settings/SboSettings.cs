@@ -10,7 +10,7 @@
         public static string ApiEndpoint = "https://dev.game-sbo.tgsdev.gq/api/provider";
 #endif
 
-#if DEV
+#if STAGING
         public static string ApiEndpoint = "https://game-sbo.tgsstg.gq/api/provider";
 #endif
 
