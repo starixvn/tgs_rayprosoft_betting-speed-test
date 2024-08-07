@@ -1,5 +1,5 @@
 ﻿# Performance testing VM environment #
-
+## testing
 ## Run performance testing ##
 1. Make sure you are at your home directory, e.g., /home/aft.petec@tgpaccessdomain.com
 
